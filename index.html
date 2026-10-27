@@ -417,6 +417,11 @@ footer .email code{background:rgba(255,250,232,.12)}
 footer .copied{color:#cfc8b5}
 footer .fbottom{border-top:1px solid rgba(255,250,232,.15);padding-block:16px;font-size:.8rem;color:#cfc8b5;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
+dialog#vbox{border:0;padding:0;background:transparent;width:min(94vw,1100px);max-width:none;overflow:visible}
+dialog#vbox::backdrop{background:rgba(20,16,24,.85)}
+dialog#vbox .vbox-frame{position:relative;width:100%;aspect-ratio:16/9;max-height:84vh;background:#000;border-radius:8px;overflow:hidden}
+dialog#vbox iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+dialog#vbox .vbox-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;color:#fff;font-weight:600}
 dialog#zoom{border:0;padding:0;background:transparent;max-width:min(94vw,900px);max-height:92vh}
 dialog#zoom::backdrop{background:rgba(20,16,24,.78)}
 dialog#zoom img{display:block;max-width:100%;max-height:86vh;border-radius:6px;background:#fff}
@@ -1519,6 +1524,7 @@ dialog#zoom button{position:absolute;top:8px;right:8px}
   <div class="wrap fbottom"><span>© 2026 RiseHI Foundation</span><span>Draft · video slots are placeholders</span></div>
 </footer>
 
+<dialog id="vbox" aria-label="Video player"><div class="vbox-top"><span id="vbox-title"></span><button class="btn" type="button" data-vclose>Close</button></div><div class="vbox-frame"><iframe id="vbox-iframe" title="Video" allow="autoplay; fullscreen" allowfullscreen></iframe></div></dialog>
 <dialog id="zoom"><img alt=""><button class="btn" type="button" data-close>Close</button></dialog>
 
 <script>
@@ -1541,7 +1547,7 @@ const EXAMPLE_COVER = "";
 const esc = x => String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const vtitle = v => v.url ? `<a href="${esc(v.url)}" target="_blank" rel="noopener">${v.t}</a>` : v.t;
 
-const poster = (n,v) => `<a class="poster${n==="trailer"?" plain":""}" href="${esc(v.url)}" target="_blank" rel="noopener" aria-label="Watch ${esc(v.t)} (opens in a new tab)"><img src="${v.thumb}" alt=""><span class="pplay" aria-hidden="true"></span><span class="pdur">${v.len}</span>${n==="trailer"?"":`<span class="ptitle">${v.t}</span>`}</a>`;
+const poster = (n,v) => `<a class="poster${n==="trailer"?" plain":""}" href="${esc(v.url)}" target="_blank" rel="noopener" aria-label="Watch ${esc(v.t)}"><img src="${v.thumb}" alt=""><span class="pplay" aria-hidden="true"></span><span class="pdur">${v.len}</span>${n==="trailer"?"":`<span class="ptitle">${v.t}</span>`}</a>`;
 document.querySelectorAll(".video[data-v]").forEach(el=>{
   const n=el.dataset.v, v=VIDEOS[n];
   if(!el.closest('main').querySelector('[data-vid-anchor="'+n+'"]')) el.dataset.vidAnchor=n;
@@ -1551,12 +1557,12 @@ document.querySelectorAll(".video[data-v]").forEach(el=>{
 
 function vactions(v){
   return v.url
-    ? `<a class="btn sm" href="${esc(v.url)}" target="_blank" rel="noopener">Watch ↗</a><button class="btn sm ghost" type="button" data-copy-text="${esc(v.url)}">Copy link</button><span class="copied" aria-live="polite"></span>`
+    ? `<a class="btn sm" href="${esc(v.url)}" target="_blank" rel="noopener">Watch ▶</a><button class="btn sm ghost" type="button" data-copy-text="${esc(v.url)}">Copy link</button><span class="copied" aria-live="polite"></span>`
     : `<span class="soon">Coming soon</span>`;
 }
 function vcard(n,v){
   const act = v.url
-    ? `<a class="btn sm" href="${esc(v.url)}" target="_blank" rel="noopener">Watch ↗</a><button class="btn sm ghost" type="button" data-copy-text="${esc(v.url)}">Copy link</button><span class="copied" aria-live="polite"></span>`
+    ? `<a class="btn sm" href="${esc(v.url)}" target="_blank" rel="noopener">Watch ▶</a><button class="btn sm ghost" type="button" data-copy-text="${esc(v.url)}">Copy link</button><span class="copied" aria-live="polite"></span>`
     : `<span class="soon">Link coming soon</span>`;
   return `<article class="vcard">
     ${v.url && v.thumb ? `<div class="video has-thumb">${poster(n,v)}</div>` : `<div class="video"><span class="pill tag">${lab(n)}</span><div class="play" aria-hidden="true"></div><div class="vlabel">${v.url?vtitle(v):`${lab(n)} goes here`}</div><div class="vsub">${v.len}</div></div>`}
@@ -1575,6 +1581,23 @@ function selectTab(k){
 }
 tabs.t.addEventListener("click",()=>selectTab("t")); tabs.s.addEventListener("click",()=>selectTab("s"));
 document.getElementById("trailer-act").innerHTML = vactions(VIDEOS.trailer);
+// Play Wistia videos in a pop-up player instead of a new tab (Cmd/Ctrl-click still opens a new tab)
+(function(){
+  const box=document.getElementById("vbox"), frame=document.getElementById("vbox-iframe"), ttl=document.getElementById("vbox-title");
+  const close=()=>{ if(box.open) box.close(); };
+  box.addEventListener("close",()=>{ frame.src="about:blank"; });
+  box.addEventListener("click",e=>{ if(e.target===box || e.target.closest("[data-vclose]")) close(); });
+  document.addEventListener("click",e=>{
+    const a=e.target.closest('a[href*="wistia.net/embed/iframe/"]');
+    if(!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button!==0) return;
+    e.preventDefault();
+    const v=Object.values(VIDEOS).find(x=>x.url===a.getAttribute("href"));
+    ttl.textContent=v ? v.t : "";
+    frame.src=a.getAttribute("href")+(a.getAttribute("href").includes("?")?"&":"?")+"autoPlay=true";
+    box.showModal();
+  });
+})();
+
 try{ const saved=localStorage.getItem("hubTab2"); if(saved==="t"||saved==="s") selectTab(saved) }catch(e){}
 
 const S = "https://drive.google.com/file/d/";
