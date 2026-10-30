@@ -30,8 +30,8 @@
 <script src="https://cdn.outseta.com/outseta.min.js" data-options="o_options"></script>
 <script>
 (function () {
-  // Plans allowed into THIS hub (Outseta plan IDs)
-  var ALLOWED_PLANS = ["DmwRpeW4", "VmAdnvWa"];
+  // Outseta add-on that unlocks THIS hub (ʻOihana: yW1xky9B, MIH: VmAOa49a)
+  var REQUIRED_ADDON = "yW1xky9B";
   var decided = false;
 
   function show(id) {
@@ -39,12 +39,15 @@
       var el = document.getElementById(s); if (el) el.hidden = (s !== id);
     });
   }
-  function readPlan(token) {
+  function readAddons(token) {
     try {
       var p = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
       while (p.length % 4) p += "=";
-      return JSON.parse(atob(p))["outseta:planUid"] || null;
-    } catch (e) { return null; }
+      var a = JSON.parse(atob(p))["outseta:addOnUids"];
+      if (!a) return [];
+      if (typeof a === "string") { try { a = JSON.parse(a); } catch (e) { a = a.split(","); } }
+      return Array.isArray(a) ? a.map(function (x) { return String(x).trim(); }) : [];
+    } catch (e) { return []; }
   }
   function unlock() {
     document.documentElement.classList.add("hub-unlocked");
@@ -60,7 +63,7 @@
     var token = window.Outseta && Outseta.getAccessToken && Outseta.getAccessToken();
     if (token) {
       decided = true;
-      if (ALLOWED_PLANS.indexOf(readPlan(token)) !== -1) unlock(); else show("hg-denied");
+      if (readAddons(token).indexOf(REQUIRED_ADDON) !== -1) unlock(); else show("hg-denied");
     } else if (final) {
       show(window.Outseta ? "hg-login" : "hg-error");
     }
