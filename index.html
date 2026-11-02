@@ -69,6 +69,25 @@
     }
   }
   window.hubGateLogout = function () { window.Outseta && Outseta.logout(); };
+  // Relabel Outseta's "Forgot password" wording so new teachers know to use it to SET a password
+  var RELABEL = { "forgot password?": "Set or reset password", "forgot password": "Set or reset your password", "forgot your password?": "Set or reset password" };
+  function relabel(root) {
+    if (!root) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var n;
+    while ((n = w.nextNode())) {
+      var k = n.nodeValue.trim().toLowerCase();
+      if (RELABEL[k]) n.nodeValue = n.nodeValue.replace(n.nodeValue.trim(), RELABEL[k]);
+    }
+    root.querySelectorAll("*").forEach(function (el) { if (el.shadowRoot) relabel(el.shadowRoot); });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    var gate = document.getElementById("hub-gate");
+    if (!gate) return;
+    relabel(gate);
+    new MutationObserver(function () { relabel(gate); }).observe(gate, { childList: true, subtree: true, characterData: true });
+  });
+
 
   if (window.Outseta && Outseta.on) {
     Outseta.on("accessToken.set", function () { evaluate(false); });
@@ -459,6 +478,7 @@ dialog#zoom button{position:absolute;top:8px;right:8px}
       <div id="hg-loading"><p>Checking your login…</p></div>
       <div id="hg-login" hidden>
         <p>This hub is for teachers. Log in with your teacher account to continue.</p>
+        <p style="font-size:14px;margin-top:-8px"><b>First time here?</b> Use the password link under the Login button to create your password.</p>
         <div data-o-auth="1" data-widget-mode="login" data-mode="embed"></div>
         <p style="margin-top:20px;font-size:14px">Need an account or forgot which email you use? Email <a href="mailto:aloha@risehi.com">aloha@risehi.com</a>.</p>
       </div>
