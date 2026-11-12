@@ -1692,12 +1692,50 @@ const PATHS = [
   ["Hospitality, Tourism, and Recreation","Culinary Arts · Sustainable Hospitality and Tourism Management",["Culinary Chef"]],
   ["Law and Public Safety","Law Enforcement Services · Fire and Emergency Services · Pre-Law",["Firefighter"]]
 ];
-const keyHTML = [...PATHS].sort((a,b)=>a[0].localeCompare(b[0])).map(([name,,cs])=>
-  `<div class="key"><h4>${name}</h4>${cs.length?cs.map(c=>K[c]?`<a href="${K[c]}" target="_blank" rel="noopener">${c}</a>`:`<span class="none">${c}: key coming soon</span>`).join(""):'<span class="none">Courses in development</span>'}</div>`).join("");
-document.querySelectorAll("[data-keys]").forEach(el=>el.innerHTML=keyHTML);
+function renderKeys(){
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const keyHTML = [...PATHS].sort((a,b)=>a[0].localeCompare(b[0])).map(([name,,cs])=>
+    `<div class="key"><h4>${name}</h4>${cs.length?[...cs].sort((a,b)=>a.localeCompare(b)).map(c=>K[c]?`<a href="${esc(K[c])}" target="_blank" rel="noopener">${esc(c)}</a>`:`<span class="none">${esc(c)}: key coming soon</span>`).join(""):'<span class="none">Courses in development</span>'}</div>`).join("");
+  document.querySelectorAll("[data-keys]").forEach(el=>el.innerHTML=keyHTML);
+  document.getElementById("paths").innerHTML = PATHS.map(([name,prog,cs,hl],i)=>
+    `<div class="path"><h4><span>${i+1}</span>${name}</h4><div class="prog"><b>HIDOE programs:</b> ${prog}</div><div class="cs">${cs.length?[...cs].sort((a,b)=>a.localeCompare(b)).map(c=>`<span>${esc(c)}</span>`).join(""):'<span class="dev">In development</span>'}</div></div>`).join("");
+}
+renderKeys();
 
-document.getElementById("paths").innerHTML = PATHS.map(([name,prog,cs,hl],i)=>
-  `<div class="path"><h4><span>${i+1}</span>${name}</h4><div class="prog"><b>HIDOE programs:</b> ${prog}</div><div class="cs">${cs.length?cs.map(c=>`<span>${c}</span>`).join(""):'<span class="dev">In development</span>'}</div></div>`).join("");
+/* Answer keys live in a Google Sheet ("ʻOihana Teacher Hub – Answer Keys", Keys tab).
+   Add a row there and the hub picks it up; if the sheet can't be reached, the list above is used. */
+const KEYS_SHEET = "https://docs.google.com/spreadsheets/d/13HLZ_8U47XD1UuaovSJ-2vW1OZuWHBSi_SbjElUxy8c/gviz/tq?tqx=out:csv&sheet=Keys";
+function parseCSV(t){
+  const rows=[]; let row=[], f="", q=false;
+  for (let i=0;i<t.length;i++){
+    const c=t[i];
+    if (q){ if (c=='"'){ if (t[i+1]=='"'){ f+='"'; i++; } else q=false; } else f+=c; }
+    else if (c=='"') q=true;
+    else if (c==','){ row.push(f); f=""; }
+    else if (c=='\n'){ row.push(f); rows.push(row); row=[]; f=""; }
+    else if (c!='\r') f+=c;
+  }
+  if (f!=="" || row.length){ row.push(f); rows.push(row); }
+  return rows;
+}
+fetch(KEYS_SHEET + "&t=" + Date.now()).then(r => r.ok ? r.text() : Promise.reject(r.status)).then(text => {
+  const rows = parseCSV(text).map(r => r.map(x => x.trim()));
+  const head = (rows.shift() || []).map(h => h.toLowerCase());
+  const ci = head.indexOf("course"), li = head.indexOf("key link");
+  if (ci < 0 || li < 0) return;
+  const pi = head.map((h,i) => h.startsWith("pathway") ? i : -1).filter(i => i >= 0);
+  const newK = {}, byPath = {};
+  rows.forEach(r => {
+    const c = r[ci], l = r[li];
+    if (!c || !/^https?:\/\//.test(l || "")) return;
+    newK[c] = l;
+    pi.forEach(i => { const p = r[i]; if (p) (byPath[p] = byPath[p] || []).push(c); });
+  });
+  if (!Object.keys(newK).length) return;
+  Object.keys(K).forEach(k => delete K[k]); Object.assign(K, newK);
+  PATHS.forEach(p => { p[2] = byPath[p[0]] || []; });
+  renderKeys();
+}).catch(() => {});
 
 const RESUME = ["Your name and contact information","An objective statement (1–2 sentences on who you are and what you're hoping to do)","Your education (school, grade level, expected graduation year)","Any relevant skills or strengths connected to this career","Any experience, clubs, volunteering, or activities that relate"];
 const COVER = ["An opening paragraph introducing yourself and the role you're interested in","A paragraph explaining why this career appeals to you and what drew you to it (you can reference what you learned from the ʻOihana course)","A paragraph about the skills or qualities you have (or are developing) that would make you a strong candidate","A closing paragraph thanking the reader and expressing your interest in learning more"];
